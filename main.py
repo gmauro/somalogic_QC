@@ -46,7 +46,7 @@ def main():
             logger.info('These are the IDs:\n{}'.format(flagged_samples.index.get_level_values('SampleId')))
 
             # Verify that external IDs are unique
-            extid_counts = Counter(adat.index.get_level_values('ExtIdentifier'))
+            extid_counts = Counter(adat.index.get_level_values('SsfExtId'))
             extid_duplicated = [k for k, v in extid_counts.items() if v > 1]
             logger.info('Found {} ExtIdentifier items duplicated'.format(len(extid_duplicated)))
             logger.info('They are: {}'. format(extid_duplicated))
@@ -70,9 +70,48 @@ def main():
 
             # Verify SomaId entries are unique
             somaid_entries_counts = Counter(adat.columns.get_level_values('SomaId'))
-            somaid_entries_duplicated = [k for k, v in somaid_entries_counts.items() if v > 1]
+            somaid_entries_duplicated = [(k, v) for k, v in somaid_entries_counts.items() if v > 1]
             logger.info('Found {} SomaId entries duplicated'.format(len(somaid_entries_duplicated)))
+            # logger.info('They are: {}'.format(somaid_entries_duplicated))
 
+            buffer_adat = adat.pick_on_meta(axis=0, name='SampleType', values=['Buffer'])
+            # print(buffer_adat.pick_on_meta(axis=1, name='SeqId', values=['2780-35']).reset_index(drop=True).max())
+            target_2780_35 = buffer_adat.pick_on_meta(axis=1, name='SeqId', values=['2780-35']).reset_index(drop=True)
+            min = target_2780_35.min()
+            max = target_2780_35.max()
+            std = target_2780_35.std()
+            mean = target_2780_35.mean()
+            median = target_2780_35.median()
+            q1 = target_2780_35.quantile(q=0.25)
+            q3 = target_2780_35.quantile(q=0.75)
+            cov = std/mean.abs()
+            print(min.values, q1.values, mean.values, median.values, q3.values, max.values)
+
+            targets = buffer_adat.exclude_on_meta(axis=0, name='RowCheck', values=['FLAG']).pick_meta(axis=1, names=['SeqId']).reset_index(drop=True)
+            min = targets.min()
+            max = targets.max()
+            std = targets.std()
+            mean = targets.mean()
+            median = targets.median()
+            q1 = targets.quantile(q=0.25)
+            q3 = targets.quantile(q=0.75)
+            cov = std / mean.abs()
+            cv_02 = 0
+            cv_1 = 0
+            for c in cov.values:
+                if c >= 0.2:
+                    cv_02 += 1
+                if c >= 1:
+                    cv_1 += 1
+            print(cv_02, cv_1)
+            print(cov.values)
+            # print(target_2780_35.mean(), target_2780_35.var())
+            # print([v for v in target_2780_35.columns.get_level_values('SeqId')])
+
+            # Extract columns containing features that start with 'MMP'
+            # target_names = adat.columns.get_level_values('Target')
+            # mmp_names = [target for target in target_names if target.startswith('MMP')]
+            # mmp_adat = adat.pick_on_meta(axis=1, name='Type', values=mmp_names)
     else:
         logger.error('{} path not found'.format(args.data_path))
         exit()
